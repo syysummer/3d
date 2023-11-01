@@ -39,7 +39,7 @@
         uniform vec3 uColor;
 
         void main() {
-            gl_FragColor = vec4(uColor, 1.0);
+            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
         }
     `;
     function getShaderSource (scriptID) {
@@ -61,6 +61,7 @@
     var fragmentShaderObject = null
     var programObject = null
     var triangleBuffer = null
+    var indexBuffer = null
     var v3PositionIndex = 0
 
     function init () {
@@ -76,14 +77,14 @@
       webgl.compileShader(vertexShaderObject)
       webgl.compileShader(fragmentShaderObject)
 
-      if (!webgl.getShaderParameter(vertexShaderObject, webgl.COMPILE_STATUS)) {
-        alert("error: vertexShaderObject")
-        return
-      }
-      if (!webgl.getShaderParameter(fragmentShaderObject, webgl.COMPILE_STATUS)) {
-        alert("error: fragmentShaderObject")
-        return
-      }
+      // if (!webgl.getShaderParameter(vertexShaderObject, webgl.COMPILE_STATUS)) {
+      //   alert("error: vertexShaderObject")
+      //   return
+      // }
+      // if (!webgl.getShaderParameter(fragmentShaderObject, webgl.COMPILE_STATUS)) {
+      //   alert("error: fragmentShaderObject")
+      //   return
+      // }
 
       programObject = webgl.createProgram()
       webgl.attachShader(programObject, vertexShaderObject)
@@ -91,33 +92,55 @@
 
      
       webgl.linkProgram(programObject)
-      if (!webgl.getShaderParameter(programObject, webgl.LINK_STATUS)) {
-        alert("error: programObject")
-        return
-      }
-
-      // 已经链接成程序，可以删除着色器
-      gl.deleteShader(vertexShader);
-      gl.deleteShader(fragmentShader);
+      // if (!webgl.getShaderParameter(programObject, webgl.LINK_STATUS)) {
+      //   alert("error: programObject")
+      //   return
+      // }
 
       webgl.useProgram(programObject)
+
+      // 顶点数据
       var jsArrayData = [
-        0.0, 1.0, 0.0, // 上顶点
-        -1.0, -1.0, 0.0, // 左顶点
-        1.0, -1.0, 0.0, // 右顶点
+        -0.5, 0, 0.0, // 0
+        0.5, 0, 0.0, // 1
+        0.5, -0.5, 0.0, // 2
+
+        // 0.5, -0.5, 0.0, // 4
+        -0.5, -0.5, 0.0, // 3
+        // -0.5, 0, 0.0, // 5
+      ]
+
+      // 索引数据
+      var indexData = [
+        0, 1, 2,
+        2, 3, 0
       ]
 
       var aPosAttLocation = webgl.bindAttribLocation(programObject, v3PositionIndex, 'v3Position')
+
+      // 创建顶点缓冲区
       triangleBuffer = webgl.createBuffer()
       webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
       webgl.bufferData(webgl.ARRAY_BUFFER, new Float32Array(jsArrayData), webgl.STATIC_DRAW)
 
+      // 索引缓冲区
+      indexBuffer = webgl.createBuffer()
+      webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+      webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), webgl.STATIC_DRAW)
+
+      // 设置绘制的背景颜色
       webgl.clearColor(0.0, 0.0, 0.0, 1.0)
+      // 执行绘制，即将背景清空成设置的颜色
       webgl.clear(webgl.COLOR_BUFFER_BIT)
 
+      // 绑定顶点缓冲区
+      webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
+      webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+
       webgl.enableVertexAttribArray(aPosAttLocation)
-      webgl.vertexAttribPointer(aPosAttLocation, 3, webgl.FLOAT, false, 0, 0)
-      webgl.drawArrays(webgl.TRIANGLES, 0, 3)
+      webgl.vertexAttribPointer(aPosAttLocation, 3, webgl.FLOAT, false, 4 * 3, 0)
+      // webgl.drawArrays(webgl.TRIANGLES, 0, 3) // 不带索引缓冲区的绘制
+      webgl.drawElements(webgl.TRIANGLES, 3, webgl.UNSIGNED_SHORT, 0) // 带索引缓冲区的绘制
     }
 
     init()
