@@ -24,7 +24,7 @@
     // 片段着色器代码
     var fragment_source = `
         precision lowp float;
-        uniform vec4 outColor;
+        varying vec4 outColor;
 
         void main(void) {
             gl_FragColor = outColor;
@@ -51,6 +51,7 @@
     var triangleBuffer = null
     var indexBuffer = null
     var v3PositionIndex = 0
+    var inColor = 1
 
     function init () {
       var canvas = document.getElementById('3dView')
@@ -85,19 +86,19 @@
       webgl.attachShader(programObject, vertexShaderObject)
       webgl.attachShader(programObject, fragmentShaderObject)
       webgl.linkProgram(programObject)
-      // if (!webgl.getShaderParameter(programObject, webgl.LINK_STATUS)) {
-      //   var err = webgl.getShaderInfoLog(programObject)
-      //   alert(err)
-      //   return
-      // }
+      if (!webgl.getProgramParameter(programObject, webgl.LINK_STATUS)) {
+        var err = webgl.getShaderInfoLog(programObject)
+        alert(err)
+        return
+      }
       webgl.useProgram(programObject)
 
       // 顶点数据
       var jsArrayData = new Float32Array([
         -0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // 0
         0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0,// 1
-        0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0// 2
-        -0.5, -0.5, 0.0, 1.0, 1.0, 0.0, 1.0// 3
+        0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0,// 2
+        -0.5, -0.5, 0.0, 1.0, 1.0, 0.0, 1.0,// 3
       ])
 
       // 索引数据
@@ -106,9 +107,9 @@
         0, 2, 3,
       ]
 
-      // 获取v3Position，inColor变量地址
-      var aPosAttLocation = webgl.bindAttribLocation(programObject, v3PositionIndex, 'v3Position')
-      var inColor = webgl.getAttribLocation(programObject, 'inColor')
+      // 将变量和shader中的变量 v3Position，inColor变量地址绑定
+      webgl.bindAttribLocation(programObject, v3PositionIndex, 'v3Position')
+      webgl.bindAttribLocation(programObject, inColor, 'inColor')
 
       // 创建顶点缓冲区
       triangleBuffer = webgl.createBuffer()
@@ -129,10 +130,10 @@
       webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
       webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer)
 
-      webgl.enableVertexAttribArray(aPosAttLocation)
+      webgl.enableVertexAttribArray(v3PositionIndex)
       webgl.enableVertexAttribArray(inColor)
 
-      webgl.vertexAttribPointer(aPosAttLocation, 3, webgl.FLOAT, false, 4 * 7, 0)
+      webgl.vertexAttribPointer(v3PositionIndex, 3, webgl.FLOAT, false, 4 * 7, 0)
       webgl.vertexAttribPointer(inColor, 4, webgl.FLOAT, false, 4 * 7, 4 * 3)
       // webgl.drawArrays(webgl.TRIANGLES, 0, 3) // 不带索引缓冲区的绘制
       webgl.drawElements(webgl.TRIANGLES, 6, webgl.UNSIGNED_SHORT, 0) // 带索引缓冲区的绘制
