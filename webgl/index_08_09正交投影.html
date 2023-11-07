@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body onload="webglStart()">
+  <canvas id="3dView" style="width: 600px; height:600px; border: 1px solid red; margin: 30px;"></canvas>
+  <script type="text/javascript" src="./js/glMatrix_0.9.6.js"></script>
+  <script type="text/javascript">
+     // 顶点着色器代码
+     var vertex_source = `
+        precision lowp float;
+        attribute vec3 v3Position;
+        attribute vec4 inColor;
+        varying vec4 outColor;
+        uniform float anim;
+        uniform mat4 proj;
+        void main(void) {
+            outColor = inColor;
+            gl_Position = proj * vec4(v3Position.x + anim, v3Position.y, v3Position.z, 1.0);
+        }
+    `;
+
+    // 片段着色器代码
+    var fragment_source = `
+        precision lowp float;
+        varying vec4 outColor;
+
+        void main(void) {
+            gl_FragColor = outColor;
+        }
+    `;
+    function getShaderSource (scriptID) {
+      var shaderScript = document.getElementById(scriptID)
+      if (shaderScript === null) return ""
+      var sourceCode = ""
+      var child = shaderScript.firstChild
+      while (child) {
+        if (child.nodeType === child.TEXT_NODE) sourceCode += child.textContent
+        child = child.nextSibling
+      }
+
+      return sourceCode
+    }
+
+
+    var webgl = null
+    var vertexShaderObject = null
+    var fragmentShaderObject = null
+    var programObject = null
+    var triangleBuffer = null
+    var indexBuffer = null
+    var v3PositionIndex = 0
+    var inColor = 1
+    var uniformAnim = 0
+    var animTime = 0
+    var projectMat = mat4.create()
+    var uniformProj = 0;
+
+    function init () {
+      var canvas = document.getElementById('3dView')
+      webgl = canvas.getContext('webgl')
+
+      // 设置坐标系
+      // webgl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight)
+      // mat4.ortho(0, canvas.clientWidth, 0, canvas.clientHeight, -1000, 1000, projectMat)
+      // left, right, bottom, top, near, far, dest(对应的矩阵源数据)
+      mat4.ortho(0, canvas.clientWidth, canvas.clientHeight, 0, -1000, 1000, projectMat)
+
+      // 创建顶点着色器和片元着色器
+      vertexShaderObject = webgl.createShader(webgl.VERTEX_SHADER)
+      fragmentShaderObject = webgl.createShader(webgl.FRAGMENT_SHADER)
+
+      webgl.shaderSource(vertexShaderObject, vertex_source)
+      webgl.shaderSource(fragmentShaderObject, fragment_source)
+
+      webgl.compileShader(vertexShaderObject)
+      webgl.compileShader(fragmentShaderObject)
+
+      if (!webgl.getShaderParameter(vertexShaderObject, webgl.COMPILE_STATUS)) {
+        var err = webgl.getShaderInfoLog(vertexShaderObject)
+        console.log('vertexShaderObject', err)
+        alert(err)
+        return
+      }
+      if (!webgl.getShaderParameter(fragmentShaderObject, webgl.COMPILE_STATUS)) {
+        var err = webgl.getShaderInfoLog(fragmentShaderObject)
+        console.log('fragmentShaderObject', err)
+        alert(err)
+        return
+      }
+
+      // 程序对象
+      programObject = webgl.createProgram()
+      webgl.attachShader(programObject, vertexShaderObject)
+      webgl.attachShader(programObject, fragmentShaderObject)
+      webgl.linkProgram(programObject)
+      if (!webgl.getProgramParameter(programObject, webgl.LINK_STATUS)) {
+        var err = webgl.getShaderInfoLog(programObject)
+        alert(err)
+        return
+      }
+      webgl.useProgram(programObject)
+
+      // 顶点数据
+      // var jsArrayData = new Float32Array([
+      //   -0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // 0
+      //   0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0,// 1
+      //   0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0,// 2
+      //   -0.5, -0.5, 0.0, 1.0, 1.0, 0.0, 1.0,// 3
+      // ])
+
+      var jsArrayData = new Float32Array([
+        -0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // 0
+        +100, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0,// 1
+        +100, +100, 0.0, 0.0, 1.0, 0.0, 1.0,// 2
+        -0.0, +100, 0.0, 1.0, 1.0, 0.0, 1.0,// 3
+      ])
+
+      // 索引数据
+      var indexData = [
+        0, 1, 2,
+        0, 2, 3,
+      ]
+
+      // 将变量和shader中的变量 v3Position，inColor变量地址绑定
+      webgl.bindAttribLocation(programObject, v3PositionIndex, 'v3Position')
+      uniformAnim = webgl.getUniformLocation(programObject, 'anim')
+      uniformProj = webgl.getUniformLocation(programObject, 'proj')
+      webgl.bindAttribLocation(programObject, inColor, 'inColor')
+
+      // 创建顶点缓冲区
+      triangleBuffer = webgl.createBuffer()
+      webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
+      webgl.bufferData(webgl.ARRAY_BUFFER, new Float32Array(jsArrayData), webgl.STATIC_DRAW)
+
+      // 索引缓冲区
+      indexBuffer = webgl.createBuffer()
+      webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+      webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), webgl.STATIC_DRAW)
+
+      // 设置绘制的背景颜色
+      webgl.clearColor(0.0, 0.0, 0.0, 1.0)
+      // 执行绘制，即将背景清空成设置的颜色
+      webgl.clear(webgl.COLOR_BUFFER_BIT)
+
+      // 绑定顶点缓冲区
+      webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
+      webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+
+      webgl.enableVertexAttribArray(v3PositionIndex)
+      webgl.enableVertexAttribArray(inColor)
+
+      webgl.vertexAttribPointer(v3PositionIndex, 3, webgl.FLOAT, false, 4 * 7, 0)
+      webgl.vertexAttribPointer(inColor, 4, webgl.FLOAT, false, 4 * 7, 4 * 3)
+      // webgl.drawArrays(webgl.TRIANGLES, 0, 3) // 不带索引缓冲区的绘制
+      webgl.drawElements(webgl.TRIANGLES, 6, webgl.UNSIGNED_SHORT, 0) // 带索引缓冲区的绘制
+
+      // drawElements(GLenum mode, GLsizei count, GLenum type, GLintptr offset)
+      // GLsizei count: 指定要绘制的顶点数
+    }
+
+    function webglStart() {
+      init()
+      // 进入循环
+      tick()
+    }
+    
+    function renderScene () {
+      // 绘制
+      // 设置绘制的背景颜色
+      webgl.clearColor(0.0, 0.0, 0.0, 1.0)
+      // 执行绘制，即将背景清空成设置的颜色
+      webgl.clear(webgl.COLOR_BUFFER_BIT)
+
+      // 绑定顶点缓冲区
+      webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
+      webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+
+      animTime += 0.5
+      webgl.useProgram(programObject)
+
+      webgl.uniform1f(uniformAnim, animTime)
+      webgl.uniformMatrix4fv(uniformProj, false, projectMat)
+      webgl.enableVertexAttribArray(v3PositionIndex)
+      webgl.enableVertexAttribArray(inColor)
+
+      webgl.vertexAttribPointer(v3PositionIndex, 3, webgl.FLOAT, false, 4 * 7, 0)
+      webgl.vertexAttribPointer(inColor, 4, webgl.FLOAT, false, 4 * 7, 4 * 3)
+      // webgl.drawArrays(webgl.TRIANGLES, 0, 3) // 不带索引缓冲区的绘制
+      webgl.drawElements(webgl.TRIANGLES, 6, webgl.UNSIGNED_SHORT, 0) // 带索引缓冲区的绘制
+
+
+
+      // webgl.useProgram(0)
+
+      // drawElements(GLenum mode, GLsizei count, GLenum type, GLintptr offset)
+      // GLsizei count: 指定要绘制的顶点数
+    }
+
+    function tick () {
+      renderScene()
+      requestAnimationFrame(tick)
+    }
+
+    window.requestAnimationFrame = (function () {
+      return window.requestAnimationFrame ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame ||
+          window.oRequestAnimationFrame ||
+          window.msRequestAnimationFrame ||
+          function (callback, element) {
+            window.setTimeout(callback, 1000 / 60)
+          }
+    })()
+
+  </script>
+</body>
+</html>
