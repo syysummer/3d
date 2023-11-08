@@ -26,3 +26,15 @@
 5. 创建程序对象 createShader，attachShader,linkProgram, (容错判断)，useProgram;
 6. 定义顶点缓冲区数据及索引缓冲区数据，将数据与着色器中变量绑定，数据和缓冲区绑定；
 7. 绘制图形，顶点缓冲区赋能，绘制；
+
+##### webgl绘制点线面
+```
+ /* BeginMode */
+const GLenum POINTS                         = 0x0000;
+const GLenum LINES                          = 0x0001;
+const GLenum LINE_LOOP                      = 0x0002;
+const GLenum LINE_STRIP                     = 0x0003;
+const GLenum TRIANGLES                      = 0x0004;
+const GLenum TRIANGLE_STRIP                 = 0x0005;
+const GLenum TRIANGLE_FAN                   = 0x0006;
+```

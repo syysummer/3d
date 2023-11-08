@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body onload="webglStart()">
+  <canvas id="3dView" style="width: 300px; height:300px; border: 1px solid red; margin: 30px;"></canvas>
+  <script type="text/javascript" src="./js/glMatrix_0.9.6.js"></script>
+  <script type="text/javascript">
+     // 顶点着色器代码
+     var vertex_source = `
+        attribute vec3 v3Position;
+        void main(void) {
+            gl_Position = vec4(v3Position, 1.0);
+        }
+    `;
+
+    // 片段着色器代码
+    var fragment_source = `
+        precision mediump float;
+        void main(void) {
+            gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        }
+    `;
+
+    var webgl = null
+    var vertexShaderObject = null
+    var fragmentShaderObject = null
+    var programObject = null
+    var triangleBuffer = null
+    var v3PositionIndex = 0
+
+    function init () {
+      var canvas = document.getElementById('3dView')
+      webgl = canvas.getContext('webgl')
+
+      // 设置坐标系 (原点在X轴的中间)
+      webgl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight / 2)
+
+      // 创建顶点着色器和片元着色器
+      vertexShaderObject = webgl.createShader(webgl.VERTEX_SHADER)
+      fragmentShaderObject = webgl.createShader(webgl.FRAGMENT_SHADER)
+
+      webgl.shaderSource(vertexShaderObject, vertex_source)
+      webgl.shaderSource(fragmentShaderObject, fragment_source)
+
+      webgl.compileShader(vertexShaderObject)
+      webgl.compileShader(fragmentShaderObject)
+
+      if (!webgl.getShaderParameter(vertexShaderObject, webgl.COMPILE_STATUS)) {
+        var err = webgl.getShaderInfoLog(vertexShaderObject)
+        console.log('vertexShaderObject', err)
+        alert(err)
+        return
+      }
+      if (!webgl.getShaderParameter(fragmentShaderObject, webgl.COMPILE_STATUS)) {
+        var err = webgl.getShaderInfoLog(fragmentShaderObject)
+        console.log('fragmentShaderObject', err)
+        alert(err)
+        return
+      }
+
+      // 程序对象
+      programObject = webgl.createProgram()
+      webgl.attachShader(programObject, vertexShaderObject)
+      webgl.attachShader(programObject, fragmentShaderObject)
+      webgl.linkProgram(programObject)
+      if (!webgl.getProgramParameter(programObject, webgl.LINK_STATUS)) {
+        var err = webgl.getShaderInfoLog(programObject)
+        alert(err)
+        return
+      }
+      webgl.useProgram(programObject)
+
+      /*顶点数据*/
+      var jsArrayData = new Float32Array([
+        // +10.0, +10.0, 0.0,  // 0
+        // +100, +10.0, 0.0,  // 1
+        // +100, +100, 0.0, // 2
+        // +10, +100, 0.0, // 3
+        -0.5, -0.5, 0.0, // 2
+        0.5, -0.5, 0.0, // 3
+        0.0, 0.0, 0.0, // 1
+        0.5, 0.0, 0.0
+      ])
+
+      var circle = new Float32Array(361 * 3)
+      var radius = 0.5
+      var centerX = 0
+      var centerY = 0
+      for (var i = 0; i < 361; i++) {
+        circle[i* 3 + 0] = radius * Math.cos(Math.PI/180 * i) + centerX
+        circle[i* 3 + 1] = radius * Math.sin(Math.PI/180 * i) + centerY
+        circle[i* 3 + 2] = 0
+      }
+
+      // 将变量和shader中的变量 v3Position 变量地址绑定
+      webgl.bindAttribLocation(programObject, v3PositionIndex, 'v3Position')
+
+      // 创建顶点缓冲区
+      triangleBuffer = webgl.createBuffer()
+      webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
+      webgl.bufferData(webgl.ARRAY_BUFFER, circle, webgl.STATIC_DRAW)
+
+      renderScene()
+    }
+
+    function webglStart() {
+      init()
+    }
+    
+    function renderScene () {
+      // 绘制
+      // 设置绘制的背景颜色
+      webgl.clearColor(0.0, 0.0, 0.0, 1.0)
+      // 执行绘制，即将背景清空成设置的颜色
+      webgl.clear(webgl.COLOR_BUFFER_BIT)
+
+      // 绑定顶点缓冲区
+      webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer)
+
+      // webgl.useProgram(programObject)
+
+      webgl.enableVertexAttribArray(v3PositionIndex)
+
+      webgl.vertexAttribPointer(v3PositionIndex, 3, webgl.FLOAT, false, 4 * 3, 0)
+
+      // LINES LINE_LOOP LINE_STRIP   TRIANGLES TRIANGLE_STRIP TRIANGLE_FAN
+      webgl.drawArrays(webgl.TRIANGLE_FAN, 0, 361) // 不带索引缓冲区的绘制
+
+      // webgl.drawElements(webgl.TRIANGLES, 6, webgl.UNSIGNED_SHORT, 0) // 带索引缓冲区的绘制
+
+      // drawElements(GLenum mode, GLsizei count, GLenum type, GLintptr offset)
+      // GLsizei count: 指定要绘制的顶点数
+    }
+
+  </script>
+</body>
+</html>
